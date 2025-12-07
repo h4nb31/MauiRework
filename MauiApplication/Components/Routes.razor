@@ -1,0 +1,68 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization;
+@using Microsoft.Extensions.Logging;
+@using MauiApplication.Components.Pages.Login;
+
+@implements IDisposable
+
+@inject NavigationManager Navigation;
+@inject ILogger<Router> Logger;
+@inject AuthenticationStateProvider StateProvider;
+
+
+<CascadingAuthenticationState>
+
+    @if (!_isAuth)
+    {
+        <LoginPage />
+    }
+    else
+    {
+        <Router AppAssembly="@typeof(MauiProgram).Assembly">
+            <Found Context="routeData">
+                <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            </Found>
+        </Router>
+    }
+
+</CascadingAuthenticationState>
+
+
+
+@code{
+    private bool _isAuth;
+
+    /// <summary>
+    /// Проверка состояния аутентификации
+    /// </summary>
+    /// <param name="authStateTask"></param>
+    private void HandleAuthChange(Task<AuthenticationState> authStateTask)
+    {
+        InvokeAsync(async () =>
+        {
+            var state = await authStateTask;
+            var user = state.User;
+            _isAuth = user.Identity?.IsAuthenticated ?? false;
+
+            if(!_isAuth && !Navigation.Uri.EndsWith("/login", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo("/login");
+            }
+        });
+        StateHasChanged();
+    }
+
+
+    protected override Task OnInitializedAsync()
+    {
+        StateProvider.AuthenticationStateChanged += HandleAuthChange;
+        HandleAuthChange(StateProvider.GetAuthenticationStateAsync());
+
+        return base.OnInitializedAsync();
+    }
+
+    public void Dispose()
+    {
+        StateProvider.AuthenticationStateChanged -= HandleAuthChange;
+    }
+}
