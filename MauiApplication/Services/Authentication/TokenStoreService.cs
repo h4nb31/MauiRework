@@ -2,15 +2,20 @@
 using Microsoft.Extensions.Logging;
 using MauiApplication.Services.Authentication._interfaces;
 
-using Microsoft.AspNetCore.Components.Authorization;
-
 namespace MauiApplication.Services.Authentication;
 
-public class TokenStoreService(ILogger<TokenStoreService> logger, IJwtService jwt, AuthStateProvider stateProvider) : ITokenStoreService
+public class TokenStoreService : ITokenStoreService
 {
-    private readonly ILogger<TokenStoreService> _logger = logger;
-    private readonly IJwtService _jwt = jwt;
-    private readonly AuthStateProvider _stateProvider = stateProvider;
+    private readonly ILogger<TokenStoreService> _logger;
+    private readonly IJwtService _jwt;
+    private AuthStateProvider _authState;
+
+    public TokenStoreService(ILogger<TokenStoreService> logger, IJwtService jwt, AuthStateProvider authState)
+    {
+        _logger = logger;
+        _jwt = jwt;
+        _authState = authState;
+    }
 
     //===============================================//
     //         Реализация методов интерфейса         //
@@ -23,14 +28,6 @@ public class TokenStoreService(ILogger<TokenStoreService> logger, IJwtService jw
         return new TokenPair { AccessToken = access, RefreshToken = refresh };
     }
 
-    public Task<ObjectResultRecord> ClearStorage()
-    {
-        SecureStorage.Remove("AccessToken");
-        SecureStorage.Remove("RefreshToken");
-        return Task.FromResult(new ObjectResultRecord() { Message = "Токены удалены", Success = true });
-    }
-
-
     public async Task WriteTokenToStore(TokenPair tokenData)
     {
         if (string.IsNullOrEmpty(tokenData.AccessToken))
@@ -39,13 +36,13 @@ public class TokenStoreService(ILogger<TokenStoreService> logger, IJwtService jw
         }
         await SecureStorage.SetAsync("AccessToken", tokenData.AccessToken);
         await SecureStorage.SetAsync("RefreshToken", tokenData.RefreshToken);
-        _stateProvider.NotifyAuthChange();
+        _authState.NotifyAuthChange();
     }
 
     public void RemoveTokenFromStore()
     {
         SecureStorage.Remove("RefreshToken");
         SecureStorage.Remove("AccessToken");
-        _stateProvider.NotifyAuthChange();
+        _authState.NotifyAuthChange();
     }
 }

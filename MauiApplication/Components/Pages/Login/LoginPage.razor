@@ -1,17 +1,56 @@
 ﻿@page "/login"
+@using Microsoft.Extensions.Logging
+@using Monitor.Services._interfaces.Web
+
+@inject IRequestService Request;
+@inject NavigationManager Navigation;
+@inject ILogger<LoginPage> Logger;
+
 
 <div class="login-wrapper">
     <img class="login-logo" alt="posadmin-logo" src="src/images/login_header.svg" />
     <div class="login-form">
         <h2>Monitor</h2>
         <div class="input-form">
-            <input type="text" placeholder="Логин..." class="input-field" />
-            <input type="password" placeholder="Пароль..." class="input-field"/>
+            <input type="text" placeholder="Логин..." class="input-field" @bind="_login"/>
+            <input type="password" placeholder="Пароль..." class="input-field" @bind="_password" />
         </div>
-        <button class="login-button">Вход</button>
+        <button class="login-button @(_isLoading ? "loading":"")" @onclick="Login">Вход</button>
     </div>
 </div>
 
-@code{
+@code {
+    private bool _isLoading;
+    private string _login;
+    private string _password;
 
+
+    private async Task Login()
+    {
+        if (string.IsNullOrEmpty(_login) || string.IsNullOrEmpty(_password))
+        {
+            return;
+        }
+
+        try
+        {
+            _isLoading = true;
+            var request = await Request.LoginAsync(_login, _password);
+            if (!request.Success)
+            {
+                Logger.LogError("Аутентификация провалилась: {message}", request.Message);
+                return;
+            }
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogInformation("Исключение при попытке аутентификации: {error}", ex);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
 }

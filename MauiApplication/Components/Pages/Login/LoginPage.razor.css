@@ -56,3 +56,16 @@ h2{
     letter-spacing: 2px;
     font-size: 15px;
 }
+
+
+@keyframes pulse{
+    50%{
+        opacity: 0.5;
+    }
+}
+
+.login-button.loading{
+
+    animation: pulse 2s linear infinite;
+    background-color: dodgerblue;
+}

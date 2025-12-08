@@ -15,6 +15,12 @@ public class JwtService(ILogger<JwtService> logger) : IJwtService
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
 
+            if(jwtToken.ValidTo < DateTime.Now)
+            {
+                _logger.LogWarning("Токен доступа истёк");
+                return null;
+            }
+
             var claims = jwtToken.Claims.ToList();
             var identity = new ClaimsIdentity(claims, "jwt");
             return new ClaimsPrincipal(identity);

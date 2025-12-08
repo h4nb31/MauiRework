@@ -11,12 +11,6 @@ public interface ITokenStoreService
     Task<TokenPair> GetTokenPair();
 
     /// <summary>
-    /// Удалить токены из хранилища
-    /// </summary>
-    /// <returns></returns>
-    Task<ObjectResultRecord> ClearStorage();
-
-    /// <summary>
     /// Запись токенов в хранилище приложения
     /// </summary>
     /// <param name="tokenData"></param>
