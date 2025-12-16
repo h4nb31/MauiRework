@@ -1,0 +1,281 @@
+﻿@using System.Reflection
+@using Corporate.Shared.Models.Employees.Data
+@using Corporate.Shared.Models.Employees.Details
+@using Microsoft.Extensions.Logging
+@using MauiApplication.Services.Web._interfaces
+@using MauiApplication.Services.Authentication
+@using MauiApplication.Services.Application._interfaces;
+@using OutsideClickHandler.Component
+
+@inject ILogger<StatusButton> Logger;
+@inject IJSRuntime Js;
+@inject IRequestService Api;
+@inject AuthStateProvider Sp;
+@inject IShiftStateService StateService;
+
+
+
+
+<OutsideClickHandler OnOutsideClick="CloseStatusList" StopPropagation="!_showStatusList">
+    @if (_showStatusList)
+    {
+        <div class="status-list" style="left: @(_elementX - 90)px; top: @(_elementY + 30)px">
+            @foreach (var stat in Statuses)
+            {
+                <div class="status-item">
+                    <span class="status-icon @(_statusMap[stat.Status].Item1)"></span>
+                    <span class="status-text" title="@_employeeData?.Status.StatusComment" style="min-width: 100px;" @onclick="async () => await SelectStatus(stat)">@stat.Comment</span>
+                    <span class="edit-status-btn pi pi-pencil" style="margin-left: auto" @onclick="() => EditStatusText(stat)"></span>
+                </div>
+            }
+        </div>
+    }
+    
+    @if (_editStatus)
+    {
+        <div class="edit-comment-form" style="left: @(_elementX - 140)px; top: @(_elementY + 60)px">
+            <div class="edit-header">
+                <span class="status-icon @(_statusMap[_tempStatus.Status].Item1)"></span>
+                <span style="color: black">Свой статус</span>
+            </div>
+            <input class="input-btn rounded-1" type="text" placeholder="@_placeHolder" 
+                   @bind="_customComment" @bind:event="oninput"
+                   @onkeydown="async (e) => await HandleKeyDown(e)"/>
+            <div class="edit-form-controls">
+                <button class="btn-secondary rounded-1" @onclick="() => CancelEditStatus()">Отмена</button>
+                <button class="btn-primary rounded-1" @onclick="async () => await AcceptStatus()">Выбрать</button>
+            </div>
+        </div>
+    }
+</OutsideClickHandler>
+
+<div id="status-btn-id" class="status-button-form @(_employeeData?.Status.Status == EmployeeStatus.Offline ? "disabled" : "")"
+     @onclick="OpenStatusList">
+    @if (_employeeLoading)
+    {
+        <span class="pi pi-spinner-dotted spinner"></span>
+    }
+    else
+    {
+        <span class="status-icon @_statusIconClass"></span>
+        @* <span class="status-text main" style="color: black">@_statusText</span> *@
+        <span class="pi @(_showStatusList ? "pi-chevron-down":"pi-chevron-right")" style="font-size: 14px !important; color: gray"></span>
+
+    }
+</div>
+<script setup>
+    window.getElementRect = () => {
+        let element = document.getElementById('status-btn-id');
+        return element.getBoundingClientRect();
+    }
+</script>
+
+@code{
+
+    private EmployeeDataRecord _employeeData;
+
+    private Guid _userUId;
+    private string _userName;
+    
+    private bool _employeeLoading;
+    private bool _showStatusList;
+    private bool _editStatus;
+    
+    private string _statusIconClass = "none";
+    private string _statusText = "Вне смены";
+    private EmpStatus _tempStatus;
+    private string _customComment;
+    private string _placeHolder = "Комментарий...";
+    
+    private int _elementX;
+    private int _elementY;
+
+    private readonly record struct EmpStatus(EmployeeStatus Status, string Comment);
+
+    private List<EmpStatus> Statuses =
+    [
+        new EmpStatus(EmployeeStatus.Online, "Свободен"),
+        new EmpStatus(EmployeeStatus.Departed, "В работе"),
+        new EmpStatus(EmployeeStatus.Lunch, "Обед"),
+        new EmpStatus(EmployeeStatus.Busy, "Занят")
+    ];
+
+    private readonly Dictionary<EmployeeStatus, (string, string)> _statusMap = new()
+    {
+        { EmployeeStatus.None, ("none", "вне смены") },
+        { EmployeeStatus.Online, ("online", "свободен") },
+        { EmployeeStatus.Offline, ("offline", "вне смены") },
+        { EmployeeStatus.Departed, ("departed", "в работе") },
+        { EmployeeStatus.Busy, ("busy", "занят") },
+        { EmployeeStatus.Lunch, ("lunch", "обед") }
+
+    };
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await AcceptStatus();
+        }
+    }
+
+    private void CancelEditStatus()
+    {
+        if (_editStatus)
+            _editStatus = false;
+        _placeHolder = "Комментарий...";
+    }
+    
+    private async Task AcceptStatus()
+    {
+        if (string.IsNullOrEmpty(_customComment)) return;
+        if (_customComment.Length > 20)
+        {
+            _customComment = null;
+            _placeHolder = "Максимум 20 символов...";
+            StateHasChanged();
+            return;
+        }
+        var newStat = _tempStatus with { Comment = _customComment };
+        await SelectStatus(newStat);
+        _customComment = null;
+        _placeHolder = "Комментарий...";
+        CloseStatusList();
+        Logger.LogInformation("stat: {stat}", newStat);
+    }
+    
+    private void EditStatusText(EmpStatus stat)
+    {
+        _editStatus = !_editStatus;
+        _tempStatus = stat;
+    }
+    
+    /// <summary>
+    ///  Выбрать и обновить статус
+    /// </summary>
+    /// <param name="stat"></param>
+    private async Task SelectStatus(EmpStatus stat)
+    {
+        var dataToUpdate = new EmployeeUpdateStatusRecord
+        (
+            _userUId,
+            _userName,
+            stat.Status,
+            stat.Comment
+        );
+        await Api.PostAsync("/api/employee/updateEmployeeStatus", dataToUpdate, CancellationToken.None);
+        await UpdateEmployeeData(_userUId);
+        SetStatusDisplay();
+        CloseStatusList();
+    }
+
+    /// <summary>
+    /// Открыть список статусов
+    /// </summary>
+    private async Task OpenStatusList()
+    {
+        if (!_showStatusList)
+        {
+            var rect = await Js.InvokeAsync<Rect>("getElementRect");
+            _elementX = (int)rect.X;
+            _elementY = (int)rect.Y;
+            if (_employeeData.Status.Status is EmployeeStatus.None or EmployeeStatus.Offline) return;
+            _showStatusList = true;
+        }
+        else
+        {
+            _showStatusList = false;
+            _editStatus = false;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Закрыть список статусов
+    /// </summary>
+    private void CloseStatusList()
+    {
+        if (_showStatusList)
+            _showStatusList = false;
+        if (_editStatus)
+            _editStatus = false;
+        _placeHolder = "Комментарий...";
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Установить статус кнопки
+    /// </summary>
+    private void SetStatusDisplay()
+    {
+        if (_employeeData == null) return;
+        if (_statusMap.TryGetValue(_employeeData.Status.Status, out var statusInfo))
+        {
+            _statusIconClass = statusInfo.Item1;
+            _statusText = _employeeData.Status.StatusComment ?? statusInfo.Item2;
+        }
+        else
+        {
+            _statusIconClass = "none";
+            _statusText = "Ошибка";
+            Logger.LogWarning("не удалось определить статус: {status}", _employeeData?.Status.Status);
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Обновление данных сотрудника
+    /// </summary>
+    private async Task UpdateEmployeeData(Guid uId)
+    {
+        try
+        {
+            _employeeLoading = true;
+
+            var employeeData = Api.GetAsync<EmployeeDataRecord>(
+                $"/api/employee/getEmployee?employeeUId={uId}", CancellationToken.None);
+            await Task.WhenAll(employeeData);
+            _employeeData = await employeeData;
+
+        }
+        catch (Exception ex)
+        {
+            Logger.LogInformation("[{place}]-[{method}]: Исключение: {ex}",
+                nameof(StatusButton), MethodBase.GetCurrentMethod()?.Name, ex);
+        }
+        finally
+        {
+            _employeeLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// При изменении смены
+    /// </summary>
+    private async void OnShiftChanged()
+    {
+        await UpdateEmployeeData(_userUId);
+        SetStatusDisplay();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await Sp.GetAuthenticationStateAsync();
+        var uIdString = state.User.Claims.FirstOrDefault(c => c.Type == "nameid")!.Value;
+        _userName = state.User.Claims.FirstOrDefault(c => c.Type == "unique_name")!.Value;
+        Guid.TryParse(uIdString, out _userUId);
+        StateService.ShiftWasChanged += OnShiftChanged;
+
+        await UpdateEmployeeData(_userUId);
+        SetStatusDisplay();
+
+        await base.OnInitializedAsync();
+    }
+
+    public void Dispose()
+    {
+        StateService.ShiftWasChanged -= OnShiftChanged;
+    }
+
+}

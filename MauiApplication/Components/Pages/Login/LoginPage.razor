@@ -1,6 +1,6 @@
 ﻿@page "/login"
-@using Microsoft.Extensions.Logging
-@using Monitor.Services._interfaces.Web
+@using MauiApplication.Services.Web._interfaces
+@using Microsoft.Extensions.Logging;
 
 @inject IRequestService Request;
 @inject NavigationManager Navigation;
@@ -53,4 +53,5 @@
             StateHasChanged();
         }
     }
+
 }

@@ -12,6 +12,14 @@ body{
     margin: 0 !important;
 }
 
+.main-content-container{
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
 #app{
     width: 100vw;
     height: 100vh;
@@ -124,4 +132,22 @@ h1:focus {
 .loading-indicator{
     animation: spin 2s linear infinite;
     font-size: 40px !important;
+}
+
+.loading-container.hidden{
+    display: none;
+}
+
+/* Изменение скрола переполнения */
+::-webkit-scrollbar {
+    width: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: #bbbbbb;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+    background-color: #7c7c7c;
 }

@@ -13,5 +13,7 @@ main{
 .content{
     padding: 0 !important;
     flex: 1;
+    display: flex;
+    overflow: auto;
 }
 

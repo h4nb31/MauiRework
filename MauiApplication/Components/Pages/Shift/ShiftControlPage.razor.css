@@ -1,0 +1,16 @@
+﻿
+.shift-control-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: 1rem 1rem;
+    box-sizing: border-box;
+}
+
+.control-header{
+    display: flex;
+    border-radius: 8px;
+    box-shadow: 0 0 3px 2px rgba(0,0,0,0.2);
+    min-height: 4rem;
+}

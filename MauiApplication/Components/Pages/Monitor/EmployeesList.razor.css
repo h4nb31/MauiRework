@@ -1,0 +1,98 @@
+﻿.shift-status-container{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: fit-content;
+    padding-left: 0.5rem;
+    /*border-bottom: 2px #DEE1E6FF solid;*/
+    box-sizing: border-box;
+}
+
+.shift-container-header{
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    font-size: 16px;
+    color: #39883d;
+    font-weight: bold;
+    cursor: default;
+}
+.shift-container-header.inactive {
+    color: #c7352d;
+}
+
+.shift-list-container{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: fit-content;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.list-item{
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    width: 100%;
+    height: fit-content;
+    padding: 0.3rem;
+    padding-inline: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+.list-item:hover{
+    background-color: #DEE1E6FF;
+}
+.list-item.selected{
+    background-color: #DEE1E6FF;
+    transition: background-color;
+    transition-duration: 100ms;
+    outline: 2px solid #b7b9bb;
+    outline-offset: 2px;
+}
+.list-item.inactive{
+    color: gray;
+}
+
+.item-content{
+    display: flex;
+    flex-direction: column;
+}
+.user-highlight {
+    height: 100%;
+    width: 2px;
+    border-radius: 1px;
+    margin-right: 2px;
+    background-color: lightslategray;
+}
+
+.status-name{
+    margin-left: 0.7rem;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.8;
+    color: grey;
+    overflow: hidden;
+    max-width: 300px;
+}
+
+.item-status{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+}
+.status-icon, .none, .offline{
+    width: 1rem;
+    height: 1rem;
+    border: solid 1px gray;
+    border-radius: 100%;
+    background-color: gray;
+    box-shadow: 0 0 3px 1px gray
+}
+.online{ border: #39883d; background-color: #4CAF50FF; box-shadow: 0 0 3px 1px #39883d; }
+.departed, .lunch{ border: #cb9809; background-color: #FFC107FF; box-shadow: 0 0 3px 1px #cb9809; }
+.busy{ border: #c7352d; background-color: #F44336FF; box-shadow: 0 0 3px 1px #c7352d; }

@@ -1,0 +1,457 @@
+﻿@page "/monitor"
+@implements  IDisposable
+
+@using System.Text.Json
+@using Corporate.Shared.Models.Departments.Data
+@using Corporate.Shared.Models.Employees.Data
+@using Corporate.Shared.Models.Employees.Details
+@using Corporate.Shared.Models.Positions.Data
+@using Corporate.Shared.Models.Shifts.Data
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.Extensions.Logging
+@using MauiApplication.Services.Web._interfaces;
+
+@inject  ILogger<StatusPage> Logger;
+@inject IRequestService Api;
+@inject IJSRuntime Js;
+@inject NavigationManager Navigation;
+
+@* обёртка компонента  *@
+<div class="status-wrapper">
+    @* основная форма *@
+    <div class="status-form">
+        @* Заголовок (назначение страницы и кнопки управления) *@
+        <div class="status-header">
+            <input type="text" placeholder="Поиск..." @bind="_searchQuery" @bind:event="oninput"/>
+            <button class="header-btn pi @(_departmentUIds.Count != 0 ? "pi-chevron-down" : "pi-chevron-right")" @onclick="InvertLists"></button>
+        </div>
+        @if (!_isLoading)
+        {
+            @* Основная сетка *@
+            <div class="status-grid">
+                @* Тайл списка *@
+                <div class="list-tile">
+                    @foreach (var depart in _departWithIndex.OrderBy(d => d.SortIndex))
+                    {
+                        @* Контейнер отдела *@
+                        <div class="depart-container @(_selectedDepartmentUId == depart.Data.UId ? "selected" : "")"
+                             @ondblclick="@(() => SelectDepartment(depart.Data.UId))"
+                             @onclick="() => _selectedDepartmentUId = depart.Data.UId">
+                            <div class="temp-index-control">
+                                <button class="index-control-btn" @onclick="() => MoveItemUp(depart)">
+                                    <span class="pi pi-sort-up-fill" ></span>
+                                </button>
+                                <button class="index-control-btn" @onclick="() => MoveItemDown(depart)">
+                                    <span class="pi pi-sort-down-fill" ></span>
+                                </button>
+                            </div>
+                            <span class="depart-name">@depart.Data.Name</span>
+                            <span class="depart-control pi @(ShouldShowDepartment(depart.Data.UId) ? "pi-chevron-down" : "pi-chevron-right")"></span>
+                        </div>
+                        @* Отображение списка отсрудников (на смене/ вне смены) *@
+                        <div class="rendered-lists-container">
+                            @if (ShouldShowDepartment(depart.Data.UId))
+                            {
+                                <EmployeesList
+                                    Employees="FilteredAvailableEmployeesByDepartments(depart.Data.UId, true).ToList()"
+                                    EmployeeSelected="SelectEmployee"
+                                    CallInfo="@(() => Logger.LogInformation("EmployeeClicked"))"
+                                    Available="true" Title="На смене" SelectedEmployeeUId="_selectedEmployeeUId"  StatusMap="_statusMap"/>
+
+                                <EmployeesList
+                                    Employees="FilteredAvailableEmployeesByDepartments(depart.Data.UId, false).ToList()"
+                                    EmployeeSelected="SelectEmployee"
+                                    CallInfo="@(() => Logger.LogInformation("EmployeeClicked"))"
+                                    Available="false" Title="Вне смены" SelectedEmployeeUId="_selectedEmployeeUId"  StatusMap="_statusMap"/>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            @* Индикатор загрузки *@    
+            <div class="loading-container">
+                <div class="loading-div">
+                    <span class="loading-span pi pi-spinner"></span>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    //=====================================//
+    //        Переменные компонента        //
+    //=====================================//
+
+    //---------------Флаги----------------//
+
+    /// <summary>
+    /// Флаг состояния загрузки данных
+    /// </summary>
+    private bool _isLoading;
+
+    /// <summary>
+    /// Флаг состояния загрузки доп данных сотрудника
+    /// </summary>
+    private bool _employeeLoad;
+
+    /// <summary>
+    /// Флаг активности тайла доп инфо (для мобильных размеров)
+    /// </summary>
+    private bool _showInfo;
+
+    //---------------Данные----------------//
+
+    private List<EmployeeListDataRecord> _employeeList;
+    private EmployeeDataRecord _employeeData;
+    private Guid _selectedEmployeeUId;
+    private Guid _selectedDepartmentUId;
+    private ShiftDataRecord _employeeShiftData;
+    private ShiftDataRecord _employeeLastShiftData;
+    private List<DepartmentsListDataRecord> _departmentList;
+    private List<Guid> _departmentUIds = [];
+    private List<PositionsListDataRecord> _positionsList;
+    private HubConnection _connection;
+
+    private string _searchQuery = "";
+
+
+    /// <summary>
+    /// Вычисление списка сотрудников по поиску
+    /// </summary>
+    private IEnumerable<EmployeeListDataRecord> SearchedEmployees
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                return _employeeList;
+            }
+            return _employeeList.Where(e => 
+                e.Name.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                (e.Skills != null && e.Skills.Any(skill => skill.Name.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)))
+            );
+        }
+    }
+
+
+    /// <summary>
+    /// класс данных для индексации списка отделов
+    /// </summary>
+    private record DepartViewModel
+    {
+        public DepartmentsListDataRecord Data { get; init; }
+        public int SortIndex { get; set; }
+    }
+
+    private List<DepartViewModel> _departWithIndex;
+
+
+    /// <summary>
+    /// Словарь статусов для маппинга стилей относительно статуса
+    /// </summary>
+    private readonly Dictionary<EmployeeStatus, (string, string)> _statusMap = new()
+    {
+        { EmployeeStatus.None , ("none", "вне смены")},
+        { EmployeeStatus.Online , ("online", "свободен")},
+        { EmployeeStatus.Offline , ("offline", "вне смены")},
+        { EmployeeStatus.Departed , ("departed", "в работе")},
+        { EmployeeStatus.Busy , ("busy", "занят")},
+        { EmployeeStatus.Lunch , ("lunch", "обед")},
+    };
+
+
+    //=================================//
+    //        Методы компонента        //
+    //=================================//
+
+    /// <summary>
+    /// флаг относительно поиска в закрытых списках
+    /// </summary>
+    /// <param name="departmentUId"></param>
+    /// <returns></returns>
+    private bool ShouldShowDepartment(Guid departmentUId)
+    {
+        if (string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            return _departmentUIds.Contains(departmentUId);
+        }
+
+        return SearchedEmployees.Any(e => e.DepartmentUId == departmentUId);
+    }
+
+    /// <summary>
+    /// Фильтрация сотрудников по отделам
+    /// </summary>
+    /// <param name="depUId"></param>
+    /// <returns></returns>
+    IEnumerable<EmployeeListDataRecord> FilterEmployeesByDepartments(Guid depUId)
+        => SearchedEmployees.Where(e => e.DepartmentUId == depUId);
+
+    /// <summary>
+    /// Фильтрация доступных сотрудников по отделам
+    /// </summary>
+    /// <param name="depUId"></param>
+    /// <param name="available"></param>
+    /// <returns></returns>
+    IEnumerable<EmployeeListDataRecord> FilteredAvailableEmployeesByDepartments(Guid depUId, bool available)
+        => SearchedEmployees.Where(e => e.DepartmentUId == depUId && IsAvailable(e.Status) == available);
+
+    /// <summary>
+    /// Фильтрация отделов с сотрудниками и добавление индекса
+    /// </summary>
+    /// <param name="departs"></param>
+    /// <returns></returns>
+    IEnumerable<DepartmentsListDataRecord> GetDepartmentsWithEmployees(IEnumerable<DepartmentsListDataRecord> departs)
+        => departs.Where(depart => FilterEmployeesByDepartments(depart.UId).ToList().Count > 0).ToList();
+
+
+    /// <summary>
+    /// Проверка доступности сотрудника
+    /// </summary>
+    /// <param name="status"></param>
+    /// <returns></returns>
+    private static bool IsAvailable(EmployeeStatus status)
+    {
+        var boolStatusMap = new Dictionary<EmployeeStatus, bool>
+        {
+            { EmployeeStatus.None , false},
+            { EmployeeStatus.Offline , false},
+            { EmployeeStatus.Online , true},
+            { EmployeeStatus.Departed , true},
+            { EmployeeStatus.Busy , true},
+            { EmployeeStatus.Lunch , true},
+        };
+
+        return boolStatusMap[status];
+    }
+
+    /// <summary>
+    /// Обработка выбора отдела
+    /// </summary>
+    /// <param name="depart"></param>
+    private void SelectDepartment(Guid depart)
+    {
+        if (_departmentUIds.Contains(depart))
+            _departmentUIds.Remove(depart);
+        else
+            _departmentUIds.Add(depart);
+
+        Logger.LogInformation("clicked depart: {departs}", _departmentUIds.Count);
+    }
+
+    /// <summary>
+    /// Инвертировать списки отделов (свернуть/развернуть)
+    /// </summary>
+    private void InvertLists()
+    {
+        if (_departmentUIds.Count > 0)
+        {
+            _departmentUIds = [];
+        }
+        else
+        {
+            foreach (var depart in _departmentList)
+            {
+                _departmentUIds.Add(depart.UId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Опустить объект вниз по списку
+    /// </summary>
+    /// <param name="depart"></param>
+    private void MoveItemDown(DepartViewModel depart)
+    {
+        if (depart.SortIndex == _departWithIndex.Count - 1) return;
+        var lowerItem = _departWithIndex
+            .FirstOrDefault(d => d.SortIndex == depart.SortIndex + 1);
+        if (lowerItem is null) return;
+        (depart.SortIndex, lowerItem.SortIndex) = (lowerItem.SortIndex, depart.SortIndex);
+    }
+
+    /// <summary>
+    /// Поднять объект вверх по списку
+    /// </summary>
+    /// <param name="depart"></param>
+    private void MoveItemUp(DepartViewModel depart)
+    {
+        if (depart.SortIndex == 0) return;
+        var higherItem = _departWithIndex
+            .FirstOrDefault(d => d.SortIndex == depart.SortIndex - 1 );
+        if (higherItem is null) return;
+        (depart.SortIndex, higherItem.SortIndex) = (higherItem.SortIndex, depart.SortIndex);
+    }
+
+    /// <summary>
+    /// Обновление статуса сотрудника по индексу
+    /// </summary>
+    /// <param name="data">данные с обновлённым статусом</param>
+    private async Task UpdateEmployeeList(StatusDataUpdate data)
+    {
+        Logger.LogInformation("status updated!");
+        try
+        {
+            await InvokeAsync(() =>
+            {
+                if (_employeeList is null) return;
+
+                // Нахождение индекса элемента списка с нужным нам uId
+                var index = _employeeList.FindIndex(e => e.UId == data.EmployeeUId);
+                if (index == -1) return;
+
+                // Создаём новый список с новым статусом элемента по найденному индексу
+                var newList = new List<EmployeeListDataRecord>(_employeeList)
+                {
+                    [index] = _employeeList[index] with { Status = data.Status, StatusComment = data.StatusComment}
+                };
+
+                // Заменяем текущий список новым
+                _employeeList = newList;
+
+                // Уведомляем систему, что компонент изменился
+                // (происходит перерисовка компонента с новыми данным)
+                StateHasChanged();
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("\n\n[{Page}] - Исключение при обновлении статуса в списке: \n\n{Exception}\n\n",
+                nameof(UpdateEmployeeList), ex);
+        }
+    }
+
+    /// <summary>
+    /// Загрузка данных выбранного сотрудника
+    /// </summary>
+    /// <param name="employeeUId"></param>
+    private async Task SelectEmployee(Guid employeeUId)
+    {
+        _selectedEmployeeUId = employeeUId;
+    }
+    
+    //==========================================//
+    //        Переопределения компонента        //
+    //==========================================//
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            //-------------- Загрузка и назначение данных ---------------//
+            
+            _isLoading = true;
+            var cToken = CancellationToken.None;
+            
+            // Подготовка задач запросов
+            var employeeList = Api.GetAsync<List<EmployeeListDataRecord>>(
+                "/api/employee/getEmployeesList", cToken);
+            var departmentList = Api.GetAsync<List<DepartmentsListDataRecord>>(
+                "/api/depart/getDepartmentList", cToken);
+            var positionList = Api.GetAsync<List<PositionsListDataRecord>>(
+                "/api/position/getPositionsList", cToken);
+
+            // Параллельная загрузка данных 
+            await Task.WhenAll([employeeList, departmentList, positionList]);
+
+            // назначение загруженных данных
+            _employeeList = await employeeList;
+            _departmentList = await departmentList;
+            _positionsList = await positionList;
+            
+            // Создание viewModel списка отделов с индексами
+            _departWithIndex = GetDepartmentsWithEmployees(_departmentList).Select((d, i) => new DepartViewModel { Data = d, SortIndex = i }).ToList();
+            
+            //-------------- Восстановление данных из хранилища ---------------//
+            
+            // Восстановление развёрнутых списков
+            var storedUIds = await SecureStorage.GetAsync("DepartUIdCache");
+            _departmentUIds = !string.IsNullOrEmpty(storedUIds) ? JsonSerializer.Deserialize<List<Guid>>(storedUIds) : [];
+            
+            // Восстановление порядка сортировки 
+            var sortedListJson = await SecureStorage.GetAsync("SortedList");
+            var sortedList = !string.IsNullOrEmpty(sortedListJson) ? JsonSerializer.Deserialize<List<Guid>>(sortedListJson) : [];
+            
+            if (sortedList.Any())
+            {
+                // Создание отдельного пустого списка для восстановления сортировки
+                var finalSortedList = new List<DepartViewModel>();
+                // Словарь uId загруженных данных отделов
+                var originalDepartDict = _departWithIndex.ToDictionary(d => d.Data.UId);
+                // Сет для проверки и добавления новых отделов в фильтрованный список
+                var savedUIdSets = new HashSet<Guid>(sortedList);
+                
+                // Заполнение нового списка отделами относительно списка сортировки
+                foreach (var uId in sortedList)
+                {
+                    if (originalDepartDict.TryGetValue(uId, out var depart))
+                        finalSortedList.Add(depart);
+                }
+                
+                // Добавление новых отделов в фильтрованный список
+                finalSortedList.AddRange(_departWithIndex.Where(depart => !savedUIdSets.Contains(depart.Data.UId)));
+                
+                // Назначение нового списка для отображения и фильтрация отделов без сотрудников
+                _departWithIndex = finalSortedList;
+            }
+            
+            // Корректировка индексов
+            for (var i = 0; i < _departWithIndex.Count; i++)
+            {
+                _departWithIndex[i].SortIndex = i;
+            }
+            
+            //-------------- SignalR ---------------//
+            
+            // Создание объекта с указанием пути подключения
+            _connection = Api.GetSignalRObject("api/status");
+            // Запуск соединения
+            await _connection.StartAsync(cToken);
+            // Прослушивание изменения статуса и обновление списка
+            _connection.On<StatusDataUpdate>("StatusUpdate", UpdateEmployeeList);
+
+
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("[{Page}] - Исключение при инициализации: {Error}",
+                nameof(StatusPage), ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+        
+        await base.OnInitializedAsync();
+    }
+
+    /// <summary>
+    /// при отключении компонента
+    /// </summary>
+    public void Dispose()
+    {
+        _ = Task.Run(async () =>
+        {
+            // Кеширования развёрнутых списков
+            var uIdJsonString = JsonSerializer.Serialize(_departmentUIds);
+            await SecureStorage.SetAsync("DepartUIdCache", uIdJsonString);
+            
+            //Кеширование порядка сортировки
+            var sortedDepartsUId = _departWithIndex
+                .OrderBy(d => d.SortIndex)
+                .Select(d => d.Data.UId)
+                .ToList();
+            
+            var jsonSortedList = JsonSerializer.Serialize(sortedDepartsUId);
+            await SecureStorage.SetAsync("SortedList", jsonSortedList);
+            
+            await _connection.StopAsync();
+        });
+        
+    }
+
+}

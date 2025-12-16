@@ -1,0 +1,51 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization;
+@using Microsoft.Extensions.Logging;
+@using Microsoft.AspNetCore.Components.Routing;
+@using MauiApplication.Components.Shared;
+
+@implements IDisposable;
+
+@inject AuthenticationStateProvider StateProvider;
+@inject NavigationManager Navigation;
+
+<div class="header-wrapper">
+    <div class="header-content">
+        <h2>@_locationMap[_currentRoute ?? ""]</h2>
+        <StatusButton />
+    </div>
+</div>
+
+@code {
+    private string _userName;
+    private string _currentRoute;
+
+    private readonly Dictionary<string, string> _locationMap = new()
+    {
+        {"shift", "Панель статуса"},
+        {"monitor", "Монитор сотрудников"},
+        {"", "Главная"}
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await StateProvider.GetAuthenticationStateAsync();
+        var user = state.User;
+        _userName = user.Claims.FirstOrDefault(t => t.Type == "unique_name")?.Value;
+
+        _currentRoute = Navigation.ToBaseRelativePath(Navigation.Uri) ?? "Helper";
+        Navigation.LocationChanged += HandleLocationChanged;
+
+        await base.OnInitializedAsync();
+    }
+
+    private void HandleLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        _currentRoute = Navigation.ToBaseRelativePath(e.Location);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
+}

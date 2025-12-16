@@ -3,7 +3,9 @@ using MauiApplication.Services.Authentication._interfaces;
 using MauiApplication.Services.Web;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Logging;
-using Monitor.Services._interfaces.Web;
+using MauiApplication.Services.Web._interfaces;
+using MauiApplication.Services.Application;
+using MauiApplication.Services.Application._interfaces;
 
 namespace MauiApplication;
 
@@ -28,6 +30,7 @@ public static class MauiProgram
 
         builder.Services.AddScoped<ITokenStoreService, TokenStoreService>();
         builder.Services.AddScoped<IRequestService, RequestService>();
+        builder.Services.AddScoped<IShiftStateService, ShiftStateService>();
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();

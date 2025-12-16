@@ -4,11 +4,11 @@ using MauiApplication.Services.Authentication._interfaces;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
-using Monitor.Services._interfaces.Web;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Reflection;
+using MauiApplication.Services.Web._interfaces;
 
 namespace MauiApplication.Services.Web
 {
@@ -24,9 +24,9 @@ namespace MauiApplication.Services.Web
         /// (Временно как hardcode. По плану будет браться из параметров приложения)
         /// </summary>
 #if DEBUG
-        private readonly Uri _baseUri = new Uri("http://192.168.2.126:8190");
+        private readonly Uri _baseUri = new("http://192.168.2.126:8190");
 #else
-        private readonly Uri _baseUri = new Uri("http://193.107.233.74:8190");
+        private readonly Uri _baseUri = new("http://193.107.233.74:8190");
 #endif
 
         /// <summary>

@@ -55,7 +55,12 @@ h2{
     font-weight: bold;
     letter-spacing: 2px;
     font-size: 15px;
+    cursor: pointer;
 }
+
+    .login-button:active {
+        background-color: dodgerblue;
+    }
 
 
 @keyframes pulse{

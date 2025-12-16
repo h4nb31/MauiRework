@@ -1,0 +1,188 @@
+﻿/* Основная обёртка и форма страницы */
+.status-wrapper, .status-form{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+/* Заголовок страницы */
+.status-header{
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    height: 3.5rem !important;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    padding-inline: 1rem;
+    background-color: #23282B;
+    color: white;
+    text-wrap: nowrap;
+    box-sizing: border-box;
+}
+
+.header-btn{
+    display: flex;
+    border-radius: 6px;
+    border: solid 1px #6b6b6b;
+    color: white;
+    background-color: black;
+    padding: 5px 12px;
+    scroll-padding-inline: 4px;
+    user-select: none;
+}
+.header-btn:hover{
+    background-color: #171A1FFF;
+    border-color: gray;
+}
+.header-btn:active{
+    outline: 2px solid gray;
+}
+
+.status-grid{
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    height: 100%;
+    padding: 0.5rem;
+    overflow: auto;
+    box-sizing: border-box;
+}
+
+.list-tile{
+    display: flex;
+    flex-grow: 1;
+    font-size: 15px;
+    gap: 0.6rem;
+    padding: 0.5rem;
+    flex-direction: column;
+    overflow-y: auto;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.depart-container{
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+    background-color: #23282b;
+    color: white;
+    padding: 0.5rem;
+    width: 100%;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+.depart-container.selected{
+    outline: 2px solid dodgerblue;
+    outline-offset: 2px;
+}
+
+.temp-index-control{
+    display: flex;
+    flex-direction: column;
+    color: white;
+    margin-right: 0.5rem;
+    height: 100%;
+}
+.index-control-btn{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 15px;
+    border: none;
+    color: white;
+    font-size: 13px;
+    background: transparent;
+    border-radius: 100%;
+    cursor: pointer;
+}
+
+.index-control-btn:hover{
+    color: cornflowerblue;
+}
+
+.index-control-btn:active{
+    color: dodgerblue;
+}
+
+.depart-name{
+    font-size: 20px;
+    font-weight: bold;
+    cursor: default;
+}
+
+.depart-control{
+    margin-left: auto;
+}
+
+.rendered-lists-container{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+}
+
+.loading-container{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+@keyframes spin {
+    
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-div{
+    display: flex;
+    padding: 0.5rem;
+    overflow: hidden;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: fit-content;
+    height: fit-content;
+}
+
+.loading-span{
+    font-size: 40px;
+    font-weight: bold;
+    animation: spin 1.5s infinite linear;
+}
+
+@media( max-width: 958px){
+    .status-grid{
+        grid-template-columns: 1fr;
+    }
+    
+    .list-tile{
+        border: none;
+        width: 100%;
+        max-width: 100%;
+        padding-inline: 0.5rem;
+    }
+    
+    .header-btn.info{
+        display: flex;
+        padding: 0.4rem 0.6rem;
+        font-size: 20px;
+        margin-left: auto;
+    }
+}
+
+@media(max-width: 508px){
+    .status-header{
+        font-size: 15px !important;
+    }
+    
+}
+
+
+

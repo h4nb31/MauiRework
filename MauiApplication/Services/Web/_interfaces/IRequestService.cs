@@ -2,7 +2,7 @@
 using Corporate.Shared.Models.Returns.Data;
 using Microsoft.AspNetCore.SignalR.Client;
 
-namespace Monitor.Services._interfaces.Web;
+namespace MauiApplication.Services.Web._interfaces;
 
 public interface IRequestService
 {

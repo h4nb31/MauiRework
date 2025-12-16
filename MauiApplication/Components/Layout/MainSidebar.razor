@@ -1,0 +1,67 @@
+﻿@using MauiApplication.Services.Web._interfaces;
+@using OutsideClickHandler.Component;
+
+@inject IRequestService RequestService;
+
+<OutsideClickHandler OnOutsideClick="OutsideClickClose" StopPropagation="!_isOpened">
+    <button class="sidebar-toggler pi pi-bars" @onclick="ToggleSidebar" />
+
+    <div class="sidebar-wrapper @(_isOpened ? "opened" : "")">
+        <div class="sidebar-header">
+            <NavLink href="" Match="NavLinkMatch.All">
+                 <h2>POSADMIN</h2>
+            </NavLink>
+        </div>
+        <div class="list-container">
+            <div class="nav-item">
+                <NavLink href="monitor" >
+                    <span class="nav-icon pi pi-chart-bar"></span>
+                    <span class="nav-link-span">Монитор</span>
+                </NavLink>
+            </div>
+            
+            <div class="nav-item">
+                <NavLink href="shift">
+                    <span class="nav-icon pi pi-check-circle"></span>
+                    <span class="nav-link-span">Статус</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-item profile">
+                <NavLink href="">
+                    <span class="nav-icon pi pi-user"></span>
+                    <span class="nav-link-span">Профиль</span>
+                </NavLink>
+            </div>
+           
+        </div>
+    </div>
+</OutsideClickHandler>
+
+
+@code {
+    private bool _isOpened;
+
+    private void ToggleSidebar()
+    {
+        _isOpened = !_isOpened;
+    }
+
+    private void OutsideClickClose()
+    {
+        InvokeAsync(() =>
+        {
+            if(_isOpened)
+            {
+                _isOpened = false;
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    private async Task CallLogout()
+    {
+        await RequestService.LogoutAsync();
+    }
+}

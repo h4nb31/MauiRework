@@ -9,7 +9,7 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState activationState)
     {
-        var window = new Window(new MainPage()) { Title = "Posadmin" };
+        var window = new Window(new MainPage()) { Title = "Helper" };
 
 #if WINDOWS
         window.MinimumHeight = 500;

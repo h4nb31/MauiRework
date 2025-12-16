@@ -1,0 +1,135 @@
+﻿.status-button-form{
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 8px;
+    padding: 0.3rem 0.4rem;
+    background-color: white;
+    border: 1px solid gray;
+    cursor: pointer;
+    margin-left: 1rem;
+}
+
+.status-button-form.disabled{
+    cursor: not-allowed;
+}
+
+.status-text{
+    align-items: center;
+    display: flex;
+    font-size: 16px;
+    overflow: hidden;
+    max-width: 75px;
+    text-wrap: nowrap;
+}
+
+.status-icon, .none, .offline{
+    width: 1rem;
+    height: 1rem;
+    border: solid 1px gray;
+    border-radius: 100%;
+    background-color: gray;
+    box-shadow: 0 0 3px 1px gray
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner{
+    animation: spin 2s infinite linear;
+}
+
+.online{ border: #39883d; background-color: #4CAF50FF; box-shadow: 0 0 3px 1px #39883d; }
+.departed, .lunch{ border: #cb9809; background-color: #FFC107FF; box-shadow: 0 0 3px 1px #cb9809; }
+.busy{ border: #c7352d; background-color: #F44336FF; box-shadow: 0 0 3px 1px #c7352d; }
+
+
+.status-list{
+    position: absolute;
+    background-color: white;
+    z-index: 60;
+    color: gray;
+    display: flex;
+    flex-direction: column;
+    height: fit-content;
+    width: fit-content;
+    border-radius: 8px;
+    box-shadow: 0 0 2px 1px #1b1d23;
+}
+
+.status-item{
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.3rem; 0.5rem;
+    font-size: 15px !important;
+    color: black;
+    cursor: pointer;
+}
+
+.edit-status-btn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
+    width: 20px;
+}
+.edit-status-btn:hover{
+    color: dodgerblue !important;
+}
+
+.status-item:hover{
+    background-color: #1b1d23;
+    color: white;
+}
+.status-item:first-child{
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+}
+
+.status-item:last-child{
+    border-bottom-left-radius: 7px;
+    border-bottom-right-radius: 7px;
+}
+
+.edit-comment-form{
+    position: absolute;
+    background-color: white;
+    border: 1px solid gray;
+    border-radius: 8px;
+    z-index: 70;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    justify-content: center;
+    height: fit-content;
+    padding: 10px 10px;
+    box-shadow: 0 0 2px 1px #1b1d23;
+}
+
+.edit-header{
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    height: fit-content;
+    align-items: center;
+    justify-content: center;
+}
+.edit-form-controls{
+    display: flex;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+}
+
+
+@media(max-width:985px){
+    .status-button-form{
+        margin-left: auto;
+        margin-right: 4.5rem;
+    }
+}

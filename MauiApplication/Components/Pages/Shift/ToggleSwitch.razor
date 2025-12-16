@@ -1,0 +1,24 @@
+﻿<div class="switch-form @(IsPausedShift ? "disabled" : "")" @onclick="ToggleShift">
+    <div class="switch-thumb 
+                @(IsShiftStarted ? "toggled" : "")
+                @(IsPausedShift ? "disabled" : "")">
+        <span class="thumb-content pi pi-bars"></span>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool IsShiftStarted { get; set; }
+    [Parameter]
+    public bool IsPausedShift { get; set; }
+    [Parameter]
+    public EventCallback<bool> IsShiftStartedChanged { get; set; }
+    
+
+    
+    private async Task ToggleShift()
+    {
+        await IsShiftStartedChanged.InvokeAsync(!IsShiftStarted);
+    }
+
+}
