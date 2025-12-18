@@ -1,11 +1,221 @@
-﻿@page "/shift"
+﻿@page "/"
+
+@using Corporate.Shared.Models.Employees.Details
+@using Corporate.Shared.Models.Returns.Data
+@using MauiApplication.Services.Application._interfaces
+@using MauiApplication.Services.Authentication
+@using MauiApplication.Services.Web._interfaces;
+@using Microsoft.Extensions.Logging;
+@using Corporate.Shared.Models.Shifts.Data;
+
+@inject IRequestService RequestService;
+@inject ILogger<ShiftControlPage> Logger;
+@inject AuthStateProvider StateProvider;
+@inject IShiftStateService ShiftState;
 
 <div class="shift-control-wrapper">
-    <div class="control-header">
-
+    <div class="profile-form">
+        <div class="user-icon">
+            <span class="pi pi-user"></span>
+        </div>
+        <div class="user-info @(_shiftLoading ? "hidden" : "")">
+            <div class="info-header">
+                <h3>Текущая смена</h3>
+                <h3 class="logout-sign pi pi-sign-out" @onclick="Logout"></h3>
+            </div>
+            <div class="current-shift-data-container">
+                @if(_currentShiftData is not null)
+                {
+                    <h4>Начало смены:</h4>
+                    <span>
+                        Дата: @_currentShiftData?.StartDate?.ToString("dd.MM.yyyy") <br/>
+                        Время: @_currentShiftData?.StartDate?.ToString("HH:mm")
+                    </span>
+                }
+                else
+                {
+                    <span>Смена не начата</span>
+                }
+            </div>
+        </div>
+        <div class="loading-container @(_shiftLoading ? "" : "hidden")">
+            <span class="loading-indicator pi pi-spinner"></span>
+        </div>
+    </div>
+    <div class="shift-change-form">
+        <button class="shift-in @(_inActivShift ? "disabled" : "") @(_inShiftChanging ? "busy" : "")"
+            @onclick="ChangeShift">
+            <span class="pi pi-sign-in"></span>
+            <span>Приход</span>
+        </button>
+        <button class="shift-out @(!_inActivShift ? "disabled" : "") @(_inShiftChanging ? "busy":"")"
+            @onclick="ChangeShift">
+            <span class="pi pi-sign-out"></span>
+            <span>Уход</span>
+        </button>
+    </div>
+    <div class="shift-info @(_shiftLoading ? "hidden" : "")">
+        <h3>Прошлая смена</h3>
+        @if (_lastShiftData is not null)
+        {
+            <div class="last-shift-info-container">
+                <div>
+                    <h4>Начало смены:</h4>
+                    <span>
+                        Дата: @_lastShiftData?.StartDate?.ToString("dd.MM.yyyy") <br />
+                        Время: @_lastShiftData?.StartDate?.ToString("HH:mm")
+                        <br/><br/>
+                    </span>
+                </div>
+                <div>
+                    <h4>Конец смены:</h4>
+                    <span>
+                        Дата: @_lastShiftData?.EndDate?.ToString("dd.MM.yyyy") <br />
+                        Время: @_lastShiftData?.EndDate?.ToString("HH:mm")
+                    </span>
+                </div>
+            </div>
+            
+        }
+        else
+        {
+            <span>Данных прошлых смен нет</span>
+        }
+        
+    </div>
+    <div class="loading-container @(_shiftLoading ? "" : "hidden")">
+        <span class="loading-indicator pi pi-spinner"></span>
     </div>
 </div>
 
 @code {
+    private bool _shiftLoading;
+    private bool _inActivShift;
+    private bool _inShiftChanging;
 
+    private ShiftDataRecord _currentShiftData, _lastShiftData;
+    private ClaimsPrincipal _userData;
+
+
+
+    /// <summary>
+    /// Получение данных смены пользователя
+    /// </summary>
+    private async Task UpdateShiftData()
+    {
+        var userUId = _userData.Claims.FirstOrDefault(t => t.Type == "nameid")?.Value;
+        try
+        {
+            _shiftLoading = true;
+
+            var currentShift = RequestService.GetAsync<ShiftDataRecord>(
+            $"/api/shift/getCurrentShift?employeeUId={userUId}", CancellationToken.None);
+            var lastShift = RequestService.GetAsync<ShiftDataRecord>(
+                $"/api/shift/getLastShift?employeeUId={userUId}", CancellationToken.None);
+
+            await Task.WhenAll(currentShift, lastShift);
+
+            _currentShiftData = await currentShift;
+            _lastShiftData = await lastShift;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("Исключение при обновлении данных смен: {error}", ex.Message);
+            _shiftLoading = false;
+        }
+        finally
+        {
+            _shiftLoading = false;
+            _inActivShift = _currentShiftData?.StartDate is not null;
+        }
+    }
+
+    /// <summary>
+    /// Временные данные статуса
+    /// </summary>
+    public record  TempStatusData
+    {
+
+        public string EmployeeUId { get ; set; }
+        public string EmployeeName { get; set; }
+        public EmployeeStatus Status { get; set; }
+    };
+
+    /// <summary>
+    /// Обноаление текущего статуса относительно смены
+    /// </summary>
+    /// <returns></returns>
+    private async Task UpdateStatus()
+    {
+        var userUId = _userData.Claims.FirstOrDefault(t => t.Type == "nameid")?.Value;
+        var userName = _userData.Claims.FirstOrDefault(t => t.Type == "unique_name")?.Value;
+
+        var statusData = new TempStatusData
+        {
+            EmployeeUId = userUId,
+            EmployeeName = userName,
+        };
+
+        try
+        {
+            statusData.Status = !_inActivShift ? EmployeeStatus.Offline : EmployeeStatus.Online;
+            await RequestService.PostAsync("/api/employee/updateEmployeeStatus", statusData, CancellationToken.None);
+            ShiftState.ShiftChange();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("\n\n[{Page}]: Исключение при обновлении статуса: \n\n{Exception}\n\n", nameof(ShiftControlPage), ex);
+        }
+    }
+
+    /// <summary>
+    /// Сменить смену относительно активной
+    /// </summary>
+    /// <returns></returns>
+    private async Task ChangeShift()
+    {
+        if (_inShiftChanging) return;
+
+        var userUId = _userData.Claims.FirstOrDefault(t => t.Type == "nameid")?.Value;
+        try
+        {
+            _inShiftChanging = true;
+
+            var request = !_inActivShift ? 
+            await RequestService.PostAsync("/api/shift/startShift", userUId, CancellationToken.None) :
+            await RequestService.PatchAsync($"/api/shift/{_currentShiftData?.ShiftUId}/employees/{userUId}", CancellationToken.None);
+
+            if (!request.IsSuccessStatusCode)
+            {
+                var error = await request.Content.ReadFromJsonAsync<ObjectResultRecord>();
+                Logger.LogWarning(error.Message);
+            }
+
+        }catch(Exception ex)
+        {
+            Logger.LogError("Исключение при изменении смены: {error}", ex.Message);
+        }
+        finally
+        {
+            _inShiftChanging = false;
+        }
+
+        await UpdateShiftData();
+        await UpdateStatus();
+    }
+
+    private async Task Logout()
+    {
+        await RequestService.LogoutAsync();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await StateProvider.GetAuthenticationStateAsync();
+        _userData = state.User;
+
+        await UpdateShiftData();
+
+        await base.OnInitializedAsync();
+    }
 }
