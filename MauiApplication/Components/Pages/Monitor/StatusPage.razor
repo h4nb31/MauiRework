@@ -22,7 +22,7 @@
     <div class="status-form">
         @* Заголовок (назначение страницы и кнопки управления) *@
         <div class="status-header">
-            <input type="text" placeholder="Поиск..." @bind="_searchQuery" @bind:event="oninput"/>
+            <input class="search-input-field" type="text" placeholder="Поиск по имени и навыкам..." @bind="_searchQuery" @bind:event="oninput"/>
             <button class="header-btn pi @(_departmentUIds.Count != 0 ? "pi-chevron-down" : "pi-chevron-right")" @onclick="InvertLists"></button>
         </div>
         @if (!_isLoading)
@@ -33,38 +33,46 @@
                 <div class="list-tile">
                     @foreach (var depart in _departWithIndex.OrderBy(d => d.SortIndex))
                     {
-                        @* Контейнер отдела *@
-                        <div class="depart-container @(_selectedDepartmentUId == depart.Data.UId ? "selected" : "")"
-                             @ondblclick="@(() => SelectDepartment(depart.Data.UId))"
-                             @onclick="() => _selectedDepartmentUId = depart.Data.UId">
-                            <div class="temp-index-control">
-                                <button class="index-control-btn" @onclick="() => MoveItemUp(depart)">
-                                    <span class="pi pi-sort-up-fill" ></span>
-                                </button>
-                                <button class="index-control-btn" @onclick="() => MoveItemDown(depart)">
-                                    <span class="pi pi-sort-down-fill" ></span>
-                                </button>
-                            </div>
-                            <span class="depart-name">@depart.Data.Name</span>
-                            <span class="depart-control pi @(ShouldShowDepartment(depart.Data.UId) ? "pi-chevron-down" : "pi-chevron-right")"></span>
-                        </div>
-                        @* Отображение списка отсрудников (на смене/ вне смены) *@
-                        <div class="rendered-lists-container">
-                            @if (ShouldShowDepartment(depart.Data.UId))
-                            {
-                                <EmployeesList
-                                    Employees="FilteredAvailableEmployeesByDepartments(depart.Data.UId, true).ToList()"
-                                    EmployeeSelected="SelectEmployee"
-                                    CallInfo="@(() => Logger.LogInformation("EmployeeClicked"))"
-                                    Available="true" Title="На смене" SelectedEmployeeUId="_selectedEmployeeUId"  StatusMap="_statusMap"/>
+                        // Отображение отделов относительно поиска
+                        var departVisibility = string.IsNullOrWhiteSpace(_searchQuery) || SearchedEmployees.Any(e => e.DepartmentUId == depart.Data.UId);
+                        
+                        @if (departVisibility)
+                        {
+                            <div class="depart-block">
+                                @* Контейнер отдела *@
+                                <div class="depart-container @(_selectedDepartmentUId == depart.Data.UId ? "selected" : "")"
+                                     @onclick="@(() => SelectDepartment(depart.Data.UId))">
+                                    <div class="temp-index-control" @onclick:stopPropagation="true">
+                                        <button class="index-control-btn" @onclick="() => MoveItemUp(depart)">
+                                            <span class="pi pi-angle-up"></span>
+                                        </button>
+                                        <button class="index-control-btn" @onclick="() => MoveItemDown(depart)">
+                                            <span class="pi pi-angle-down"></span>
+                                        </button>
+                                    </div>
+                                    <span class="depart-name">@depart.Data.Name</span>
+                                    <span class="depart-control pi @(ShouldShowDepartment(depart.Data.UId) ? "pi-chevron-down" : "pi-chevron-right")"></span>
+                                </div>
 
-                                <EmployeesList
-                                    Employees="FilteredAvailableEmployeesByDepartments(depart.Data.UId, false).ToList()"
-                                    EmployeeSelected="SelectEmployee"
-                                    CallInfo="@(() => Logger.LogInformation("EmployeeClicked"))"
-                                    Available="false" Title="Вне смены" SelectedEmployeeUId="_selectedEmployeeUId"  StatusMap="_statusMap"/>
-                            }
-                        </div>
+                                @* Отображение списка отсрудников (на смене/ вне смены) *@
+                                <div class="rendered-lists-container @(ShouldShowDepartment(depart.Data.UId) ? "" : "closed")">
+                                    @if (ShouldShowDepartment(depart.Data.UId))
+                                    {
+                                        <EmployeesList
+                                            Employees="FilteredAvailableEmployeesByDepartments(depart.Data.UId, true).ToList()"
+                                            EmployeeSelected="SelectEmployee"
+                                            CallInfo="@(() => Logger.LogInformation("EmployeeClicked"))"
+                                            Available="true" Title="На смене" SelectedEmployeeUId="_selectedEmployeeUId" StatusMap="_statusMap" />
+
+                                        <EmployeesList
+                                            Employees="FilteredAvailableEmployeesByDepartments(depart.Data.UId, false).ToList()"
+                                            EmployeeSelected="SelectEmployee"
+                                            CallInfo="@(() => Logger.LogInformation("EmployeeClicked"))"
+                                            Available="false" Title="Вне смены" SelectedEmployeeUId="_selectedEmployeeUId" StatusMap="_statusMap" />
+                                    }
+                                </div>
+                            </div>
+                        }
                     }
                 </div>
             </div>
@@ -93,24 +101,11 @@
     /// </summary>
     private bool _isLoading;
 
-    /// <summary>
-    /// Флаг состояния загрузки доп данных сотрудника
-    /// </summary>
-    private bool _employeeLoad;
-
-    /// <summary>
-    /// Флаг активности тайла доп инфо (для мобильных размеров)
-    /// </summary>
-    private bool _showInfo;
-
     //---------------Данные----------------//
 
     private List<EmployeeListDataRecord> _employeeList;
-    private EmployeeDataRecord _employeeData;
     private Guid _selectedEmployeeUId;
     private Guid _selectedDepartmentUId;
-    private ShiftDataRecord _employeeShiftData;
-    private ShiftDataRecord _employeeLastShiftData;
     private List<DepartmentsListDataRecord> _departmentList;
     private List<Guid> _departmentUIds = [];
     private List<PositionsListDataRecord> _positionsList;
@@ -329,7 +324,7 @@
     /// Загрузка данных выбранного сотрудника
     /// </summary>
     /// <param name="employeeUId"></param>
-    private async Task SelectEmployee(Guid employeeUId)
+    private void SelectEmployee(Guid employeeUId)
     {
         _selectedEmployeeUId = employeeUId;
     }

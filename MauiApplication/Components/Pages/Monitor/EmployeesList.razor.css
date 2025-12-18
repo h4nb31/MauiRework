@@ -21,6 +21,12 @@
     color: #c7352d;
 }
 
+.status-line{
+    width: 90%;
+    height: 2px !important;
+    background-color: green;
+}
+
 .shift-list-container{
     display: flex;
     flex-direction: column;
@@ -83,7 +89,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: auto;
+/*    margin-left: auto;*/
+    padding-inline: 0.3rem;
 }
 .status-icon, .none, .offline{
     width: 1rem;

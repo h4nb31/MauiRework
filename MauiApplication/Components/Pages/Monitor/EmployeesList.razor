@@ -7,9 +7,7 @@
 @if (Employees.Count != 0)
 {
     <div class="shift-status-container">
-        <div class="shift-container-header @(Available ? "" : "inactive")">
-            <span>@Title</span>
-        </div>
+        
         <div class="shift-list-container">
             @foreach (var emp in Employees)
             {
@@ -19,13 +17,14 @@
                     {
                         <div class="user-highlight"></div>
                     }
+                    <div class="item-status">
+                        <span class="status-icon @StatusMap[emp.Status].Item1"></span>
+                    </div>
                     <div class="item-content">
                         <span>@emp.Name</span>
                         <span class="status-name">@(emp.StatusComment ?? StatusMap[emp.Status].Item2)</span>
                     </div>
-                    <div class="item-status">
-                        <span class="status-icon @StatusMap[emp.Status].Item1"></span>
-                    </div>
+                    
                 </div>
             }
         </div>
