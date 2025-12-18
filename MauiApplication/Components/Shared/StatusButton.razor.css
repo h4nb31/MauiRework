@@ -64,7 +64,7 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 0.3rem; 0.5rem;
+    padding: 0.3rem 0.5rem;
     font-size: 15px !important;
     color: black;
     cursor: pointer;

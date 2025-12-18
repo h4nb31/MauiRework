@@ -38,7 +38,7 @@
                 <span class="status-icon @(_statusMap[_tempStatus.Status].Item1)"></span>
                 <span style="color: black">Свой статус</span>
             </div>
-            <input class="input-btn rounded-1" type="text" placeholder="@_placeHolder" 
+            <input id="status-input-id" class="input-btn rounded-1" type="text" placeholder="@_placeHolder" 
                    @bind="_customComment" @bind:event="oninput"
                    @onkeydown="async (e) => await HandleKeyDown(e)"/>
             <div class="edit-form-controls">
@@ -68,6 +68,12 @@
         let element = document.getElementById('status-btn-id');
         return element.getBoundingClientRect();
     }
+
+    window.focusInput = () => {
+        let element = document.getElementById('status-input-id');
+        element.focus();
+        return element.getBoundingClientRect();
+    }
 </script>
 
 @code{
@@ -76,17 +82,17 @@
 
     private Guid _userUId;
     private string _userName;
-    
+
     private bool _employeeLoading;
     private bool _showStatusList;
     private bool _editStatus;
-    
+
     private string _statusIconClass = "none";
     private string _statusText = "Вне смены";
     private EmpStatus _tempStatus;
     private string _customComment;
     private string _placeHolder = "Комментарий...";
-    
+
     private int _elementX;
     private int _elementY;
 
@@ -125,7 +131,7 @@
             _editStatus = false;
         _placeHolder = "Комментарий...";
     }
-    
+
     private async Task AcceptStatus()
     {
         if (string.IsNullOrEmpty(_customComment)) return;
@@ -143,11 +149,12 @@
         CloseStatusList();
         Logger.LogInformation("stat: {stat}", newStat);
     }
-    
+
     private void EditStatusText(EmpStatus stat)
     {
         _editStatus = !_editStatus;
         _tempStatus = stat;
+        InvokeAsync(() => Js.InvokeAsync<Rect>("focusInput"));
     }
     
     /// <summary>
