@@ -8,28 +8,19 @@
 
     <div class="sidebar-wrapper @(_isOpened ? "opened" : "")">
         <div class="sidebar-header">
-            <NavLink href="" Match="NavLinkMatch.All">
-                 <h2>POSADMIN</h2>
-            </NavLink>
+            <h2>POSADMIN</h2>
         </div>
         <div class="list-container">
             <div class="nav-item">
-                <NavLink href="monitor" >
+                <NavLink href="monitor" @onclick="ToggleSidebar">
                     <span class="nav-icon pi pi-chart-bar"></span>
                     <span class="nav-link-span">Монитор</span>
                 </NavLink>
             </div>
             
-            <div class="nav-item">
-                <NavLink href="shift">
-                    <span class="nav-icon pi pi-check-circle"></span>
-                    <span class="nav-link-span">Статус</span>
-                </NavLink>
-            </div>
-
-            <div class="nav-item profile">
+            <div class="nav-item" @onclick="ToggleSidebar">
                 <NavLink href="">
-                    <span class="nav-icon pi pi-user"></span>
+                    <span class="nav-icon pi pi-check-circle"></span>
                     <span class="nav-link-span">Профиль</span>
                 </NavLink>
             </div>

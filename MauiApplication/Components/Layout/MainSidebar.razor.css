@@ -47,11 +47,6 @@
     box-sizing: border-box;
 }
 
-.nav-item.profile {
-    margin-top: auto;
-    margin-bottom: 1rem;
-}
-
 .nav-item:hover{
     background-color: slategray;
 }
@@ -88,7 +83,7 @@
         display: none;
     }
 
-    .sidebar-wrapper.opened{
+    .sidebar-wrapper.opened {
         position: absolute;
         left: 0;
         top: 3.5rem;
@@ -96,6 +91,7 @@
         flex-direction: column;
         width: 100%;
         height: fit-content;
+        border-bottom: solid 2px #708090;
     }
 
     .sidebar-toggler{
@@ -105,9 +101,5 @@
         cursor: pointer;
         top: 0.83rem;
         left: calc(100vw - 3.2rem);
-    }
-
-    .nav-item.profile{
-        margin: 0;
     }
 }
